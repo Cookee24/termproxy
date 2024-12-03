@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Release - ${{ matrix.platform.release_for }}
+    strategy:
+      matrix:
+        platform:
+          - release_for: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_postfix: ""
+            
+          - release_for: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_postfix: ".exe"
+            
+          - release_for: macOS-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            binary_postfix: ""
+            
+          - release_for: macOS-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            binary_postfix: ""
+
+          - release_for: Linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary_postfix: ""
+            
+          - release_for: Linux-armv7
+            os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            binary_postfix: ""
+            
+          - release_for: Windows-aarch64
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+            binary_postfix: ".exe"
+
+    runs-on: ${{ matrix.platform.os }}
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install cross-compilation tools
+        if: contains(matrix.platform.target, 'aarch64') || contains(matrix.platform.target, 'armv7')
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
+          fi
+        shell: bash
+      
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.platform.target }}
+          override: true
+      
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.platform.target }}
+          use-cross: ${{ runner.os == 'Linux' && (contains(matrix.platform.target, 'aarch64') || contains(matrix.platform.target, 'armv7')) }}
+          
+      - name: Prepare assets
+        shell: bash
+        run: |
+          mkdir -p release/
+          cp target/${{ matrix.platform.target }}/release/${{ github.event.repository.name }}${{ matrix.platform.binary_postfix }} release/
+          cp README.md release/
+          cp LICENSE release/
+          cd release
+          tar -czf ${{ github.event.repository.name }}-${{ matrix.platform.release_for }}.tar.gz *
+          
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/${{ github.event.repository.name }}-${{ matrix.platform.release_for }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
