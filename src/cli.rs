@@ -15,7 +15,7 @@ pub enum Commands {
         terminal: Terminal,
 
         #[clap(flatten)]
-        options: Options,
+        options: Box<Options>,
     },
 
     /// Get current terminal's proxy environment variables
