@@ -92,33 +92,33 @@ fn is_bare_ip_address(value: &str) -> bool {
     if value.contains("://") {
         return false;
     }
-    
+
     // Split by colon to get potential IP and port
     let parts: Vec<&str> = value.split(':').collect();
     if parts.len() != 2 {
         return false;
     }
-    
+
     let ip_part = parts[0];
     let port_part = parts[1];
-    
+
     // Check if port is a valid number
     if port_part.parse::<u16>().is_err() {
         return false;
     }
-    
+
     // Check if IP part looks like an IPv4 address
     let ip_parts: Vec<&str> = ip_part.split('.').collect();
     if ip_parts.len() != 4 {
         return false;
     }
-    
+
     for part in ip_parts {
         if part.parse::<u8>().is_err() {
             return false;
         }
     }
-    
+
     true
 }
 
@@ -206,7 +206,10 @@ mod tests {
     #[test]
     fn test_parse_proxy_server() {
         let proxy_server = "";
-        assert_eq!(parse_proxy_server(proxy_server, false), ProxyList::default());
+        assert_eq!(
+            parse_proxy_server(proxy_server, false),
+            ProxyList::default()
+        );
 
         let proxy_server = "127.0.0.1:8080";
         assert_eq!(
@@ -283,9 +286,21 @@ mod tests {
 
     #[test]
     fn test_add_protocol_prefix() {
-        assert_eq!(add_protocol_prefix("127.0.0.1:7890", false), "http://127.0.0.1:7890");
-        assert_eq!(add_protocol_prefix("127.0.0.1:7890", true), "socks5h://127.0.0.1:7890");
-        assert_eq!(add_protocol_prefix("http://127.0.0.1:7890", false), "http://127.0.0.1:7890");
-        assert_eq!(add_protocol_prefix("proxy.example.com:8080", false), "proxy.example.com:8080");
+        assert_eq!(
+            add_protocol_prefix("127.0.0.1:7890", false),
+            "http://127.0.0.1:7890"
+        );
+        assert_eq!(
+            add_protocol_prefix("127.0.0.1:7890", true),
+            "socks5h://127.0.0.1:7890"
+        );
+        assert_eq!(
+            add_protocol_prefix("http://127.0.0.1:7890", false),
+            "http://127.0.0.1:7890"
+        );
+        assert_eq!(
+            add_protocol_prefix("proxy.example.com:8080", false),
+            "proxy.example.com:8080"
+        );
     }
 }

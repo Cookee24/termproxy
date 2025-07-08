@@ -68,7 +68,14 @@ impl Terminal {
                     value
                 }
             }
-            Terminal::Bash | Terminal::Zsh | Terminal::Fish | Terminal::Elvish | Terminal::Xonsh | Terminal::Tcsh | Terminal::Ion | Terminal::Nu => {
+            Terminal::Bash
+            | Terminal::Zsh
+            | Terminal::Fish
+            | Terminal::Elvish
+            | Terminal::Xonsh
+            | Terminal::Tcsh
+            | Terminal::Ion
+            | Terminal::Nu => {
                 if value.contains('\\') || value.contains('"') {
                     Cow::Owned(value.replace("\\", "\\\\").replace("\"", "\\\""))
                 } else {

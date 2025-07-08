@@ -44,7 +44,11 @@ impl<'a> ProxyList<'a> {
 }
 
 #[allow(unused_variables)]
-fn get_proxies(terminal: Terminal, query_options: QueryOptions, override_options: &OverrideOptions) -> ProxyList<'static> {
+fn get_proxies(
+    terminal: Terminal,
+    query_options: QueryOptions,
+    override_options: &OverrideOptions,
+) -> ProxyList<'static> {
     #[cfg(target_os = "linux")]
     return linux::get_proxies(query_options);
 
