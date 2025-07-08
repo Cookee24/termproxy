@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     name: Release - ${{ matrix.platform.release_for }}
@@ -49,7 +52,7 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Install cross-compilation tools
         if: contains(matrix.platform.target, 'aarch64') || contains(matrix.platform.target, 'armv7')
@@ -61,18 +64,19 @@ jobs:
         shell: bash
       
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: ${{ matrix.platform.target }}
-          override: true
+          targets: ${{ matrix.platform.target }}
       
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.platform.target }}
-          use-cross: ${{ runner.os == 'Linux' && (contains(matrix.platform.target, 'aarch64') || contains(matrix.platform.target, 'armv7')) }}
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ] && (echo "${{ matrix.platform.target }}" | grep -E "(aarch64|armv7)"); then
+            cargo install cross --git https://github.com/cross-rs/cross
+            cross build --release --target ${{ matrix.platform.target }}
+          else
+            cargo build --release --target ${{ matrix.platform.target }}
+          fi
+        shell: bash
           
       - name: Prepare assets
         shell: bash
@@ -85,7 +89,7 @@ jobs:
           tar -czf ${{ github.event.repository.name }}-${{ matrix.platform.release_for }}.tar.gz *
           
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: release/${{ github.event.repository.name }}-${{ matrix.platform.release_for }}.tar.gz
         env:
