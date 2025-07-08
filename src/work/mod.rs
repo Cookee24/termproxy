@@ -98,7 +98,7 @@ pub fn cat() -> String {
 
     for key in KEYS {
         if let Ok(val) = std::env::var(key) {
-            res.push_str(&format!("{}: {}\n", key, val));
+            res.push_str(&format!("{key}: {val}\n"));
         }
     }
 
@@ -114,7 +114,7 @@ pub fn cat() -> String {
         ];
         for key in CAP_KEYS {
             if let Ok(val) = std::env::var(key) {
-                res.push_str(&format!("{}: {}\n", key, val));
+                res.push_str(&format!("{key}: {val}\n"));
             }
         }
     }

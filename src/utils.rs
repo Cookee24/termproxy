@@ -70,16 +70,16 @@ impl Terminal {
     pub fn set_env_str(&self, (key, value): Var) -> String {
         let escaped_value = self.escape_value(value);
         match self {
-            Terminal::PowerShell => format!("$env:{} = \"{}\"", key, escaped_value),
-            Terminal::Cmd => format!("set {}={}", key, escaped_value),
-            Terminal::Bash => format!("export {}=\"{}\"", key, escaped_value),
-            Terminal::Zsh => format!("export {}=\"{}\"", key, escaped_value),
-            Terminal::Fish => format!("set -x {} \"{}\"", key, escaped_value),
-            Terminal::Elvish => format!("set-env {} \"{}\"", key, escaped_value),
-            Terminal::Xonsh => format!("$env:{} = \"{}\"", key, escaped_value),
-            Terminal::Tcsh => format!("setenv {} \"{}\"", key, escaped_value),
-            Terminal::Ion => format!("export {}=\"{}\"", key, escaped_value),
-            Terminal::Nu => format!("$nu.env[\"{}\"] = \"{}\"", key, escaped_value),
+            Terminal::PowerShell => format!("$env:{key} = \"{escaped_value}\""),
+            Terminal::Cmd => format!("set {key}={escaped_value}"),
+            Terminal::Bash => format!("export {key}=\"{escaped_value}\""),
+            Terminal::Zsh => format!("export {key}=\"{escaped_value}\""),
+            Terminal::Fish => format!("set -x {key} \"{escaped_value}\""),
+            Terminal::Elvish => format!("set-env {key} \"{escaped_value}\""),
+            Terminal::Xonsh => format!("$env:{key} = \"{escaped_value}\""),
+            Terminal::Tcsh => format!("setenv {key} \"{escaped_value}\""),
+            Terminal::Ion => format!("export {key}=\"{escaped_value}\""),
+            Terminal::Nu => format!("$nu.env[\"{key}\"] = \"{escaped_value}\""),
         }
     }
 

@@ -10,9 +10,9 @@ fn from_dbus(options: QueryOptions) -> ProxyList {
     let conn = zbus::blocking::Connection::session().expect("Failed to connect to dbus");
     let mconn = MConnection(conn);
 
-    let no_proxies = Vec::new();
+    let mut no_proxies = Vec::new();
     for addr in options.no_query_addrs {
-        if mconn.get_first_proxy(addr).is_empty() {
+        if mconn.get_first_proxy(addr.clone()).is_empty() {
             no_proxies.push(addr);
         }
     }
@@ -44,7 +44,7 @@ impl MConnection {
             .body()
             .deserialize::<Vec<String>>()
             .expect("Failed to get body")
-            .get(0)
+            .first()
             .cloned()
             .unwrap_or_default();
         match proxy == "direct://" {
