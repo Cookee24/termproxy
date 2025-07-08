@@ -83,4 +83,8 @@ pub struct OverrideOptions {
     /// Do not detect proxy from system
     #[arg(long)]
     pub no_detect: bool,
+
+    /// Force SOCKS5H protocol for bare IP addresses on Windows
+    #[arg(long)]
+    pub force_socks5h: bool,
 }

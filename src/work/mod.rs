@@ -44,7 +44,7 @@ impl<'a> ProxyList<'a> {
 }
 
 #[allow(unused_variables)]
-fn get_proxies(terminal: Terminal, query_options: QueryOptions) -> ProxyList<'static> {
+fn get_proxies(terminal: Terminal, query_options: QueryOptions, override_options: &OverrideOptions) -> ProxyList<'static> {
     #[cfg(target_os = "linux")]
     return linux::get_proxies(query_options);
 
@@ -52,7 +52,7 @@ fn get_proxies(terminal: Terminal, query_options: QueryOptions) -> ProxyList<'st
     return macos::get_proxies(terminal);
 
     #[cfg(target_os = "windows")]
-    return windows::get_proxies();
+    return windows::get_proxies(override_options.force_socks5h);
 
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     compile_error!("Unsupported OS");
@@ -65,7 +65,7 @@ pub fn init(
 ) -> String {
     let mut proxies = ProxyList::default();
     if !override_options.no_detect {
-        proxies = get_proxies(terminal, query_options);
+        proxies = get_proxies(terminal, query_options, &override_options);
     }
 
     if let Some(http_proxy) = override_options.http_proxy {

@@ -7,11 +7,11 @@ use super::ProxyList;
 
 const PROXY_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
 
-pub fn get_proxies() -> ProxyList<'static> {
-    from_registry()
+pub fn get_proxies(force_socks5h: bool) -> ProxyList<'static> {
+    from_registry(force_socks5h)
 }
 
-fn from_registry() -> ProxyList<'static> {
+fn from_registry(force_socks5h: bool) -> ProxyList<'static> {
     // Get system proxy
     let hkcu = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
     let settings = hkcu.open_subkey(PROXY_KEY).unwrap();
@@ -22,14 +22,14 @@ fn from_registry() -> ProxyList<'static> {
         return Default::default();
     }
 
-    let mut proxy_list = parse_proxy_server(&proxy_server);
+    let mut proxy_list = parse_proxy_server(&proxy_server, force_socks5h);
     let no_proxy = parse_no_proxy(&proxy_override);
 
     proxy_list.no = Cow::Owned(no_proxy);
     proxy_list
 }
 
-fn parse_proxy_server(proxy_server: &str) -> ProxyList<'static> {
+fn parse_proxy_server(proxy_server: &str, force_socks5h: bool) -> ProxyList<'static> {
     let mut http = String::new();
     let mut https = String::new();
     let mut ftp = String::new();
@@ -56,7 +56,7 @@ fn parse_proxy_server(proxy_server: &str) -> ProxyList<'static> {
                 },
                 [_] => {
                     if !value.is_empty() {
-                        all = value.to_string();
+                        all = add_protocol_prefix(value, force_socks5h);
                     }
                 }
                 _ => eprintln!("Invalid proxy definition: {}", value),
@@ -72,6 +72,54 @@ fn parse_proxy_server(proxy_server: &str) -> ProxyList<'static> {
         all: Cow::Owned(all),
         no: Cow::Borrowed(""),
     }
+}
+
+fn add_protocol_prefix(value: &str, force_socks5h: bool) -> String {
+    // Check if it's a bare IP address (no protocol prefix)
+    if is_bare_ip_address(value) {
+        if force_socks5h {
+            format!("socks5h://{}", value)
+        } else {
+            format!("http://{}", value)
+        }
+    } else {
+        value.to_string()
+    }
+}
+
+fn is_bare_ip_address(value: &str) -> bool {
+    // Check if it matches IP:port pattern without protocol
+    if value.contains("://") {
+        return false;
+    }
+    
+    // Split by colon to get potential IP and port
+    let parts: Vec<&str> = value.split(':').collect();
+    if parts.len() != 2 {
+        return false;
+    }
+    
+    let ip_part = parts[0];
+    let port_part = parts[1];
+    
+    // Check if port is a valid number
+    if port_part.parse::<u16>().is_err() {
+        return false;
+    }
+    
+    // Check if IP part looks like an IPv4 address
+    let ip_parts: Vec<&str> = ip_part.split('.').collect();
+    if ip_parts.len() != 4 {
+        return false;
+    }
+    
+    for part in ip_parts {
+        if part.parse::<u8>().is_err() {
+            return false;
+        }
+    }
+    
+    true
 }
 
 fn parse_no_proxy(proxy_override: &str) -> String {
@@ -158,16 +206,28 @@ mod tests {
     #[test]
     fn test_parse_proxy_server() {
         let proxy_server = "";
-        assert_eq!(parse_proxy_server(proxy_server), ProxyList::default());
+        assert_eq!(parse_proxy_server(proxy_server, false), ProxyList::default());
 
         let proxy_server = "127.0.0.1:8080";
         assert_eq!(
-            parse_proxy_server(proxy_server),
+            parse_proxy_server(proxy_server, false),
             ProxyList {
                 http: Cow::Borrowed(""),
                 https: Cow::Borrowed(""),
                 ftp: Cow::Borrowed(""),
-                all: Cow::Owned(proxy_server.to_string()),
+                all: Cow::Owned("http://127.0.0.1:8080".to_string()),
+                no: Cow::Borrowed("")
+            }
+        );
+
+        let proxy_server = "127.0.0.1:7890";
+        assert_eq!(
+            parse_proxy_server(proxy_server, true),
+            ProxyList {
+                http: Cow::Borrowed(""),
+                https: Cow::Borrowed(""),
+                ftp: Cow::Borrowed(""),
+                all: Cow::Owned("socks5h://127.0.0.1:7890".to_string()),
                 no: Cow::Borrowed("")
             }
         );
@@ -175,7 +235,7 @@ mod tests {
         let proxy_server =
             "http=127.0.0.1:7890;https=127.0.0.1:7890;ftp=127.0.0.1:7890;socks=127.0.0.1:7890";
         assert_eq!(
-            parse_proxy_server(proxy_server),
+            parse_proxy_server(proxy_server, false),
             ProxyList {
                 http: Cow::Owned("127.0.0.1:7890".to_string()),
                 https: Cow::Owned("127.0.0.1:7890".to_string()),
@@ -208,5 +268,24 @@ mod tests {
 
         let proxy_override = "*.google.com;*.baidu.com";
         assert_eq!(parse_no_proxy(proxy_override), "baidu.com,google.com");
+    }
+
+    #[test]
+    fn test_is_bare_ip_address() {
+        assert!(is_bare_ip_address("127.0.0.1:8080"));
+        assert!(is_bare_ip_address("192.168.1.1:3128"));
+        assert!(!is_bare_ip_address("http://127.0.0.1:8080"));
+        assert!(!is_bare_ip_address("socks://127.0.0.1:1080"));
+        assert!(!is_bare_ip_address("proxy.example.com:8080"));
+        assert!(!is_bare_ip_address("127.0.0.1"));
+        assert!(!is_bare_ip_address("127.0.0.1:abc"));
+    }
+
+    #[test]
+    fn test_add_protocol_prefix() {
+        assert_eq!(add_protocol_prefix("127.0.0.1:7890", false), "http://127.0.0.1:7890");
+        assert_eq!(add_protocol_prefix("127.0.0.1:7890", true), "socks5h://127.0.0.1:7890");
+        assert_eq!(add_protocol_prefix("http://127.0.0.1:7890", false), "http://127.0.0.1:7890");
+        assert_eq!(add_protocol_prefix("proxy.example.com:8080", false), "proxy.example.com:8080");
     }
 }
