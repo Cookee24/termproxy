@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create release for'
+        required: true
+        default: 'v0.1.0'
 
 permissions:
   contents: write
@@ -55,6 +60,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Create tag for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag ${{ github.event.inputs.tag }}
+          git push origin ${{ github.event.inputs.tag }}
+      
       - name: Install cross-compilation tools
         if: contains(matrix.platform.target, 'aarch64') || contains(matrix.platform.target, 'armv7')
         run: |
@@ -93,5 +106,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: release/${{ github.event.repository.name }}-${{ matrix.platform.release_for }}.tar.gz
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
