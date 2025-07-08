@@ -1,33 +1,35 @@
-use super::ProxyList;
-use crate::utils::Terminal;
+use std::borrow::Cow;
 use std::process::Command;
 
-pub fn get_proxies(terminal: Terminal) -> ProxyList {
+use super::ProxyList;
+use crate::utils::Terminal;
+
+pub fn get_proxies(terminal: Terminal) -> ProxyList<'static> {
     let mut proxies = ProxyList::default();
 
     // Get HTTP proxy
     if let Some(http_proxy) = get_proxy_for_protocol("http") {
-        proxies.http = http_proxy;
+        proxies.http = Cow::Owned(http_proxy);
     }
 
     // Get HTTPS proxy
     if let Some(https_proxy) = get_proxy_for_protocol("https") {
-        proxies.https = https_proxy;
+        proxies.https = Cow::Owned(https_proxy);
     }
 
     // Get FTP proxy
     if let Some(ftp_proxy) = get_proxy_for_protocol("ftp") {
-        proxies.ftp = ftp_proxy;
+        proxies.ftp = Cow::Owned(ftp_proxy);
     }
 
     // Get SOCKS proxy (for all_proxy)
     if let Some(socks_proxy) = get_proxy_for_protocol("socks") {
-        proxies.all = socks_proxy;
+        proxies.all = Cow::Owned(socks_proxy);
     }
 
     // Get proxy bypass list
     if let Some(no_proxy) = get_proxy_bypass_list() {
-        proxies.no = no_proxy;
+        proxies.no = Cow::Owned(no_proxy);
     }
 
     proxies

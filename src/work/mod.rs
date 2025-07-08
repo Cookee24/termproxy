@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     cli::{OverrideOptions, QueryOptions},
     utils::{Terminal, Vars},
@@ -11,16 +13,16 @@ mod macos;
 mod windows;
 
 #[derive(Default, Debug, PartialEq, Eq)]
-struct ProxyList {
-    http: String,
-    https: String,
-    ftp: String,
-    all: String,
-    no: String,
+struct ProxyList<'a> {
+    http: Cow<'a, str>,
+    https: Cow<'a, str>,
+    ftp: Cow<'a, str>,
+    all: Cow<'a, str>,
+    no: Cow<'a, str>,
 }
 
-impl ProxyList {
-    fn into_vars(self) -> Vars {
+impl<'a> ProxyList<'a> {
+    fn into_vars(self) -> Vars<'a> {
         let mut vars = Vars::default();
         if !self.http.is_empty() {
             vars.push(("http_proxy", self.http));
@@ -42,7 +44,7 @@ impl ProxyList {
 }
 
 #[allow(unused_variables)]
-fn get_proxies(terminal: Terminal, query_options: QueryOptions) -> ProxyList {
+fn get_proxies(terminal: Terminal, query_options: QueryOptions) -> ProxyList<'static> {
     #[cfg(target_os = "linux")]
     return linux::get_proxies(query_options);
 
@@ -67,19 +69,19 @@ pub fn init(
     }
 
     if let Some(http_proxy) = override_options.http_proxy {
-        proxies.http = http_proxy;
+        proxies.http = Cow::Owned(http_proxy);
     }
     if let Some(https_proxy) = override_options.https_proxy {
-        proxies.https = https_proxy;
+        proxies.https = Cow::Owned(https_proxy);
     }
     if let Some(ftp_proxy) = override_options.ftp_proxy {
-        proxies.ftp = ftp_proxy;
+        proxies.ftp = Cow::Owned(ftp_proxy);
     }
     if let Some(all_proxy) = override_options.all_proxy {
-        proxies.all = all_proxy;
+        proxies.all = Cow::Owned(all_proxy);
     }
     if let Some(no_proxy) = override_options.no_proxy {
-        proxies.no = no_proxy;
+        proxies.no = Cow::Owned(no_proxy);
     }
 
     terminal.set_envs_str(proxies.into_vars())

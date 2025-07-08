@@ -1,10 +1,11 @@
+use std::borrow::Cow;
 use std::str::FromStr;
 
 use clap::Parser;
 use colored::Colorize;
 
-pub type Var = (&'static str, String);
-pub type Vars = Vec<Var>;
+pub type Var<'a> = (&'static str, Cow<'a, str>);
+pub type Vars<'a> = Vec<Var<'a>>;
 
 #[derive(Parser, Debug, Clone, Copy, PartialEq)]
 pub enum Terminal {
@@ -51,23 +52,34 @@ impl FromStr for Terminal {
 
 impl Terminal {
     #[inline]
-    fn escape_value(&self, value: String) -> String {
+    fn escape_value<'a>(&self, value: Cow<'a, str>) -> Cow<'a, str> {
         match self {
-            Terminal::PowerShell => value.replace("`", "``").replace("\"", "`\""),
-            Terminal::Cmd => value.replace("%", "%%"),
-            Terminal::Bash => value.replace("\\", "\\\\").replace("\"", "\\\""),
-            Terminal::Zsh => value.replace("\\", "\\\\").replace("\"", "\\\""),
-            Terminal::Fish => value.replace("\\", "\\\\").replace("\"", "\\\""),
-            Terminal::Elvish => value.replace("\\", "\\\\").replace("\"", "\\\""),
-            Terminal::Xonsh => value.replace("\\", "\\\\").replace("\"", "\\\""),
-            Terminal::Tcsh => value.replace("\\", "\\\\").replace("\"", "\\\""),
-            Terminal::Ion => value.replace("\\", "\\\\").replace("\"", "\\\""),
-            Terminal::Nu => value.replace("\\", "\\\\").replace("\"", "\\\""),
+            Terminal::PowerShell => {
+                if value.contains('`') || value.contains('"') {
+                    Cow::Owned(value.replace("`", "``").replace("\"", "`\""))
+                } else {
+                    value
+                }
+            }
+            Terminal::Cmd => {
+                if value.contains('%') {
+                    Cow::Owned(value.replace("%", "%%"))
+                } else {
+                    value
+                }
+            }
+            Terminal::Bash | Terminal::Zsh | Terminal::Fish | Terminal::Elvish | Terminal::Xonsh | Terminal::Tcsh | Terminal::Ion | Terminal::Nu => {
+                if value.contains('\\') || value.contains('"') {
+                    Cow::Owned(value.replace("\\", "\\\\").replace("\"", "\\\""))
+                } else {
+                    value
+                }
+            }
         }
     }
 
     #[inline]
-    pub fn set_env_str(&self, (key, value): Var) -> String {
+    pub fn set_env_str<'a>(&self, (key, value): Var<'a>) -> String {
         let escaped_value = self.escape_value(value);
         match self {
             Terminal::PowerShell => format!("$env:{key} = \"{escaped_value}\""),
@@ -83,7 +95,7 @@ impl Terminal {
         }
     }
 
-    pub fn set_envs_str(&self, envs: Vars) -> String {
+    pub fn set_envs_str<'a>(&self, envs: Vars<'a>) -> String {
         envs.into_iter()
             .map(|(key, value)| self.set_env_str((key, value)))
             .collect::<Vec<_>>()

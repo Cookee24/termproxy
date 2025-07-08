@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 use colored::Colorize;
@@ -6,11 +7,11 @@ use super::ProxyList;
 
 const PROXY_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
 
-pub fn get_proxies() -> ProxyList {
+pub fn get_proxies() -> ProxyList<'static> {
     from_registry()
 }
 
-fn from_registry() -> ProxyList {
+fn from_registry() -> ProxyList<'static> {
     // Get system proxy
     let hkcu = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
     let settings = hkcu.open_subkey(PROXY_KEY).unwrap();
@@ -24,11 +25,11 @@ fn from_registry() -> ProxyList {
     let mut proxy_list = parse_proxy_server(&proxy_server);
     let no_proxy = parse_no_proxy(&proxy_override);
 
-    proxy_list.no = no_proxy;
+    proxy_list.no = Cow::Owned(no_proxy);
     proxy_list
 }
 
-fn parse_proxy_server(proxy_server: &str) -> ProxyList {
+fn parse_proxy_server(proxy_server: &str) -> ProxyList<'static> {
     let mut http = String::new();
     let mut https = String::new();
     let mut ftp = String::new();
@@ -65,11 +66,11 @@ fn parse_proxy_server(proxy_server: &str) -> ProxyList {
     }
 
     ProxyList {
-        http,
-        https,
-        ftp,
-        all,
-        no: String::new(),
+        http: Cow::Owned(http),
+        https: Cow::Owned(https),
+        ftp: Cow::Owned(ftp),
+        all: Cow::Owned(all),
+        no: Cow::Borrowed(""),
     }
 }
 
@@ -163,11 +164,11 @@ mod tests {
         assert_eq!(
             parse_proxy_server(proxy_server),
             ProxyList {
-                http: "".to_string(),
-                https: "".to_string(),
-                ftp: "".to_string(),
-                all: proxy_server.to_string(),
-                no: "".to_string()
+                http: Cow::Borrowed(""),
+                https: Cow::Borrowed(""),
+                ftp: Cow::Borrowed(""),
+                all: Cow::Owned(proxy_server.to_string()),
+                no: Cow::Borrowed("")
             }
         );
 
@@ -176,11 +177,11 @@ mod tests {
         assert_eq!(
             parse_proxy_server(proxy_server),
             ProxyList {
-                http: "127.0.0.1:7890".to_string(),
-                https: "127.0.0.1:7890".to_string(),
-                ftp: "127.0.0.1:7890".to_string(),
-                all: "socks://127.0.0.1:7890".to_string(),
-                no: "".to_string()
+                http: Cow::Owned("127.0.0.1:7890".to_string()),
+                https: Cow::Owned("127.0.0.1:7890".to_string()),
+                ftp: Cow::Owned("127.0.0.1:7890".to_string()),
+                all: Cow::Owned("socks://127.0.0.1:7890".to_string()),
+                no: Cow::Borrowed("")
             }
         );
     }

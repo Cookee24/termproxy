@@ -1,12 +1,14 @@
+use std::borrow::Cow;
+
 use crate::cli::QueryOptions;
 
 use super::ProxyList;
 
-pub fn get_proxies(options: QueryOptions) -> ProxyList {
+pub fn get_proxies(options: QueryOptions) -> ProxyList<'static> {
     from_dbus(options)
 }
 
-fn from_dbus(options: QueryOptions) -> ProxyList {
+fn from_dbus(options: QueryOptions) -> ProxyList<'static> {
     let conn = zbus::blocking::Connection::session().expect("Failed to connect to dbus");
     let mconn = MConnection(conn);
 
@@ -18,11 +20,11 @@ fn from_dbus(options: QueryOptions) -> ProxyList {
     }
 
     ProxyList {
-        http: mconn.get_first_proxy(options.http_query_addr),
-        https: mconn.get_first_proxy(options.https_query_addr),
-        ftp: mconn.get_first_proxy(options.ftp_query_addr),
-        all: mconn.get_first_proxy(options.all_query_addr),
-        no: no_proxies.join(","),
+        http: Cow::Owned(mconn.get_first_proxy(options.http_query_addr)),
+        https: Cow::Owned(mconn.get_first_proxy(options.https_query_addr)),
+        ftp: Cow::Owned(mconn.get_first_proxy(options.ftp_query_addr)),
+        all: Cow::Owned(mconn.get_first_proxy(options.all_query_addr)),
+        no: Cow::Owned(no_proxies.join(",")),
     }
 }
 
